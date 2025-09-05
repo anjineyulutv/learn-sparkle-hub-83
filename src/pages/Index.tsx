@@ -2,6 +2,7 @@ import { Routes, Route } from "react-router-dom";
 import { Header } from "@/components/layout/Header";
 import { Sidebar } from "@/components/layout/Sidebar";
 import { RightSidebar } from "@/components/layout/RightSidebar";
+import { SurrealNotification } from "@/components/ui/SurrealNotification";
 import { Feed } from "@/components/social/Feed";
 import { StudyGroups } from "@/components/social/StudyGroups";
 import { AIAssistant } from "@/components/social/AIAssistant";
@@ -16,6 +17,7 @@ const Index = () => {
   return (
     <div className="min-h-screen bg-background">
       <Header />
+      <SurrealNotification />
       <div className="flex">
         <Sidebar />
         <main className="flex-1 p-6">
