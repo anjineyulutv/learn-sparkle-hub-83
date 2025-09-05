@@ -1,9 +1,17 @@
 import { useState } from 'react';
-import { Search, Bell, User } from 'lucide-react';
+import { Search, Bell, User, LogOut } from 'lucide-react';
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { useAuth } from "@/hooks/useAuth";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 interface SearchResult {
   id: string;
@@ -23,6 +31,7 @@ export function Header() {
   const [searchQuery, setSearchQuery] = useState('');
   const [showSearchResults, setShowSearchResults] = useState(false);
   const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
+  const { user, signOut } = useAuth();
 
   const handleSearch = (query: string) => {
     setSearchQuery(query);
@@ -35,6 +44,13 @@ export function Header() {
     } else {
       setShowSearchResults(false);
     }
+  };
+
+  const getUserInitials = () => {
+    if (!user) return 'U';
+    const email = user.email || '';
+    const username = user.user_metadata?.username || user.user_metadata?.display_name || email.split('@')[0];
+    return username.charAt(0).toUpperCase();
   };
 
   return (
@@ -97,11 +113,33 @@ export function Header() {
             </Badge>
           </Button>
           
-          <Avatar className="h-8 w-8 cursor-pointer hover:shadow-glow transition-all duration-300">
-            <AvatarFallback className="bg-gradient-primary text-primary-foreground font-semibold">
-              M
-            </AvatarFallback>
-          </Avatar>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Avatar className="h-8 w-8 cursor-pointer hover:shadow-glow transition-all duration-300">
+                <AvatarFallback className="bg-gradient-primary text-primary-foreground font-semibold">
+                  {getUserInitials()}
+                </AvatarFallback>
+              </Avatar>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-56">
+              <div className="px-2 py-1.5 text-sm font-medium">
+                {user?.user_metadata?.display_name || user?.email?.split('@')[0] || 'User'}
+              </div>
+              <div className="px-2 py-1.5 text-xs text-muted-foreground">
+                {user?.email}
+              </div>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem>
+                <User className="mr-2 h-4 w-4" />
+                <span>Profile</span>
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem onClick={signOut} className="text-destructive">
+                <LogOut className="mr-2 h-4 w-4" />
+                <span>Sign out</span>
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
       </div>
     </header>
