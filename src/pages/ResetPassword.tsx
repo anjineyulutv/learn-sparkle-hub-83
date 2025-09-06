@@ -7,6 +7,7 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Loader2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { useAuth } from '@/hooks/useAuth';
 
 const ResetPassword = () => {
   const [password, setPassword] = useState('');
@@ -15,13 +16,11 @@ const ResetPassword = () => {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const { toast } = useToast();
+  const { user } = useAuth();
 
   useEffect(() => {
-    // Check if we have the required tokens
-    const accessToken = searchParams.get('access_token');
-    const refreshToken = searchParams.get('refresh_token');
-    
-    if (!accessToken || !refreshToken) {
+    // Check if user is logged in from the reset link
+    if (!user) {
       toast({
         title: "Invalid reset link",
         description: "This password reset link is invalid or expired.",
@@ -29,7 +28,7 @@ const ResetPassword = () => {
       });
       navigate('/auth');
     }
-  }, [searchParams, navigate, toast]);
+  }, [user, navigate, toast]);
 
   const handleResetPassword = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -68,9 +67,11 @@ const ResetPassword = () => {
       } else {
         toast({
           title: "Password updated",
-          description: "Your password has been successfully updated.",
+          description: "Your password has been successfully updated. Please sign in with your new password.",
         });
-        navigate('/');
+        // Sign out the user so they need to log in with new password
+        await supabase.auth.signOut();
+        navigate('/auth');
       }
     } catch (error) {
       toast({
@@ -82,6 +83,14 @@ const ResetPassword = () => {
       setIsLoading(false);
     }
   };
+
+  if (!user) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin" />
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-background p-4">

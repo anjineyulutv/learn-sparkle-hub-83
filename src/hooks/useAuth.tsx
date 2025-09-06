@@ -116,7 +116,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     const redirectUrl = `${window.location.origin}/auth/reset-password`;
     
     const { error } = await supabase.auth.resetPasswordForEmail(email, {
-      redirectTo: redirectUrl
+      redirectTo: redirectUrl,
     });
 
     if (error) {
