@@ -81,7 +81,23 @@ export function Post({ post, onLike, onReply, onShare }: PostProps) {
       </CardHeader>
       
       <CardContent className="pt-0">
-        <p className="text-card-foreground leading-relaxed mb-4">{post.content}</p>
+        {post.category && (
+          <div className="mb-2">
+            <span className="text-xs bg-secondary text-secondary-foreground px-2 py-1 rounded-full">
+              {post.category}
+            </span>
+          </div>
+        )}
+        <p className="text-sm text-foreground mb-4 whitespace-pre-wrap">{post.content}</p>
+        {post.tags && post.tags.length > 0 && (
+          <div className="mb-4 flex flex-wrap gap-1">
+            {post.tags.map((tag, index) => (
+              <span key={index} className="text-xs text-primary hover:text-primary/80 cursor-pointer">
+                #{tag}
+              </span>
+            ))}
+          </div>
+        )}
         
         <div className="flex items-center justify-between pt-3 border-t border-border">
           <Button

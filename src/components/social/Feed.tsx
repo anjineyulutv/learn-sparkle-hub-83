@@ -64,33 +64,50 @@ export function Feed() {
             display_name,
             username,
             avatar_url
-          ),
-          post_likes!left (
-            user_id
           )
         `)
         .order('created_at', { ascending: false });
 
       if (error) throw error;
 
-      const formattedPosts: PostData[] = postsData?.map(post => ({
-        id: post.id,
-        author: {
-          name: post.profiles?.display_name || post.profiles?.username || 'Anonymous',
-          avatar: post.profiles?.avatar_url || post.profiles?.display_name?.[0] || 'A',
-          handle: post.profiles?.username
-        },
-        content: post.content,
-        timestamp: new Date(post.created_at),
-        likes: post.likes_count || 0,
-        replies: post.replies_count || 0,
-        shares: post.shares_count || 0,
-        liked: post.post_likes?.some((like: any) => like.user_id === user?.id) || false,
-        type: post.post_type || 'text',
-        category: post.category,
-        tags: post.tags,
-        link_preview: post.link_preview
-      })) || [];
+      const formattedPosts: PostData[] = postsData?.map(post => {
+        const profile = post.profiles as any;
+        const postType = post.post_type as 'text' | 'question' | 'achievement';
+        
+        return {
+          id: post.id,
+          author: {
+            name: profile?.display_name || profile?.username || 'Anonymous',
+            avatar: profile?.avatar_url || profile?.display_name?.[0] || 'A',
+            handle: profile?.username
+          },
+          content: post.content,
+          timestamp: new Date(post.created_at),
+          likes: post.likes_count || 0,
+          replies: post.replies_count || 0,
+          shares: post.shares_count || 0,
+          liked: false, // We'll check this separately
+          type: postType || 'text',
+          category: post.category,
+          tags: post.tags,
+          link_preview: post.link_preview
+        };
+      }) || [];
+
+      // Check likes for authenticated user
+      if (user && formattedPosts.length > 0) {
+        const { data: likes } = await supabase
+          .from('post_likes')
+          .select('post_id')
+          .eq('user_id', user.id)
+          .in('post_id', formattedPosts.map(p => p.id));
+
+        const likedPostIds = new Set(likes?.map(l => l.post_id) || []);
+        
+        formattedPosts.forEach(post => {
+          post.liked = likedPostIds.has(post.id);
+        });
+      }
 
       setPosts(formattedPosts);
     } catch (error) {
