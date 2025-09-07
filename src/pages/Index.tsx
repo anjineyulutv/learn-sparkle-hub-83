@@ -4,6 +4,7 @@ import { Sidebar } from "@/components/layout/Sidebar";
 import { RightSidebar } from "@/components/layout/RightSidebar";
 import { SurrealNotification } from "@/components/ui/SurrealNotification";
 import { Feed } from "@/components/social/Feed";
+import { PostSeeder } from "@/components/social/PostSeeder";
 import { StudyGroups } from "@/components/social/StudyGroups";
 import { AIAssistant } from "@/components/social/AIAssistant";
 import { Explore } from "@/pages/Explore";
@@ -22,7 +23,12 @@ const Index = () => {
         <Sidebar />
         <main className="flex-1 p-6">
           <Routes>
-            <Route path="/" element={<Feed />} />
+            <Route path="/" element={
+              <div className="space-y-6">
+                <PostSeeder />
+                <Feed />
+              </div>
+            } />
             <Route path="/explore" element={<Explore />} />
             <Route path="/groups" element={<StudyGroups />} />
             <Route path="/messages" element={<Messages />} />

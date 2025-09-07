@@ -2,6 +2,8 @@ import { useState, useEffect } from 'react';
 import { CreatePost } from './CreatePost';
 import { Post } from './Post';
 import { useToast } from '@/hooks/use-toast';
+import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/hooks/useAuth';
 
 interface PostData {
   id: string;
@@ -17,91 +19,172 @@ interface PostData {
   shares: number;
   liked: boolean;
   type?: 'text' | 'question' | 'achievement';
+  category?: string;
+  tags?: string[];
+  link_preview?: any;
 }
 
-const mockPosts: PostData[] = [
-  {
-    id: '1',
-    author: { name: 'Alice Chen', avatar: 'A' },
-    content: "Just completed my first Azure deployment! The learning curve was steep but totally worth it. Anyone else working on cloud projects? #Azure #LearningJourney",
-    timestamp: new Date(Date.now() - 3600000),
-    likes: 12,
-    replies: 3,
-    shares: 2,
-    liked: false,
-    type: 'text'
-  },
-  {
-    id: '2',
-    author: { name: 'Bob Kumar', avatar: 'B' },
-    content: "Question: What's the best way to structure a React application for scalability? Working on a social learning platform and want to get the architecture right from the start. Any recommendations? #React #Architecture",
-    timestamp: new Date(Date.now() - 7200000),
-    likes: 8,
-    replies: 5,
-    shares: 1,
-    liked: false,
-    type: 'question'
-  },
-  {
-    id: '3',
-    author: { name: 'Sarah Johnson', avatar: 'S' },
-    content: "Loving the collaborative approach to learning here! Just joined a study group for machine learning and already learning so much from peers. The community aspect makes all the difference. 🤝 #CommunityLearning #MachineLearning",
-    timestamp: new Date(Date.now() - 10800000),
-    likes: 15,
-    replies: 7,
-    shares: 4,
-    liked: true,
-    type: 'text'
-  },
-  {
-    id: '4',
-    author: { name: 'David Lee', avatar: 'D' },
-    content: "🏆 Achievement Unlocked: Completed my 30-day coding streak! The consistency really pays off. Thanks to everyone in the JavaScript Fundamentals group for the motivation and support!",
-    timestamp: new Date(Date.now() - 14400000),
-    likes: 24,
-    replies: 12,
-    shares: 6,
-    liked: false,
-    type: 'achievement'
-  }
-];
-
 export function Feed() {
-  const [posts, setPosts] = useState<PostData[]>(mockPosts);
+  const [posts, setPosts] = useState<PostData[]>([]);
+  const [loading, setLoading] = useState(true);
   const { toast } = useToast();
+  const { user } = useAuth();
 
-  const handleCreatePost = (content: string) => {
-    const newPost: PostData = {
-      id: Date.now().toString(),
-      author: { name: 'Manas Kumar', avatar: 'M' },
-      content,
-      timestamp: new Date(),
-      likes: 0,
-      replies: 0,
-      shares: 0,
-      liked: false,
-      type: 'text'
-    };
-
-    setPosts(prev => [newPost, ...prev]);
+  useEffect(() => {
+    fetchPosts();
     
-    toast({
-      title: "Post shared successfully!",
-      description: "Your post has been added to the feed.",
-    });
+    // Subscribe to real-time updates
+    const channel = supabase
+      .channel('posts-changes')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'posts'
+        },
+        () => {
+          fetchPosts();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, []);
+
+  const fetchPosts = async () => {
+    try {
+      const { data: postsData, error } = await supabase
+        .from('posts')
+        .select(`
+          *,
+          profiles!posts_author_id_fkey (
+            display_name,
+            username,
+            avatar_url
+          ),
+          post_likes!left (
+            user_id
+          )
+        `)
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+
+      const formattedPosts: PostData[] = postsData?.map(post => ({
+        id: post.id,
+        author: {
+          name: post.profiles?.display_name || post.profiles?.username || 'Anonymous',
+          avatar: post.profiles?.avatar_url || post.profiles?.display_name?.[0] || 'A',
+          handle: post.profiles?.username
+        },
+        content: post.content,
+        timestamp: new Date(post.created_at),
+        likes: post.likes_count || 0,
+        replies: post.replies_count || 0,
+        shares: post.shares_count || 0,
+        liked: post.post_likes?.some((like: any) => like.user_id === user?.id) || false,
+        type: post.post_type || 'text',
+        category: post.category,
+        tags: post.tags,
+        link_preview: post.link_preview
+      })) || [];
+
+      setPosts(formattedPosts);
+    } catch (error) {
+      console.error('Error fetching posts:', error);
+      toast({
+        title: "Error loading posts",
+        description: "Failed to load posts. Please try again.",
+        variant: "destructive"
+      });
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const handleLike = (postId: string) => {
-    setPosts(prev => prev.map(post => {
-      if (post.id === postId) {
-        return {
-          ...post,
-          liked: !post.liked,
-          likes: post.liked ? post.likes - 1 : post.likes + 1
-        };
+  const handleCreatePost = async (content: string) => {
+    if (!user) {
+      toast({
+        title: "Authentication required",
+        description: "Please sign in to create posts.",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    try {
+      const { error } = await supabase
+        .from('posts')
+        .insert({
+          content,
+          author_id: user.id,
+          post_type: 'text'
+        });
+
+      if (error) throw error;
+
+      toast({
+        title: "Post shared successfully!",
+        description: "Your post has been added to the feed.",
+      });
+    } catch (error) {
+      console.error('Error creating post:', error);
+      toast({
+        title: "Error creating post",
+        description: "Failed to create post. Please try again.",
+        variant: "destructive"
+      });
+    }
+  };
+
+  const handleLike = async (postId: string) => {
+    if (!user) {
+      toast({
+        title: "Authentication required",
+        description: "Please sign in to like posts.",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    try {
+      const post = posts.find(p => p.id === postId);
+      if (!post) return;
+
+      if (post.liked) {
+        // Unlike
+        await supabase
+          .from('post_likes')
+          .delete()
+          .eq('post_id', postId)
+          .eq('user_id', user.id);
+
+        await supabase
+          .from('posts')
+          .update({ likes_count: Math.max(0, post.likes - 1) })
+          .eq('id', postId);
+      } else {
+        // Like
+        await supabase
+          .from('post_likes')
+          .insert({ post_id: postId, user_id: user.id });
+
+        await supabase
+          .from('posts')
+          .update({ likes_count: post.likes + 1 })
+          .eq('id', postId);
       }
-      return post;
-    }));
+    } catch (error) {
+      console.error('Error updating like:', error);
+      toast({
+        title: "Error updating like",
+        description: "Failed to update like. Please try again.",
+        variant: "destructive"
+      });
+    }
   };
 
   const handleReply = (postId: string) => {
@@ -118,20 +201,50 @@ export function Feed() {
     });
   };
 
+  if (loading) {
+    return (
+      <div className="max-w-2xl mx-auto space-y-6">
+        <div className="animate-pulse space-y-4">
+          {[...Array(3)].map((_, i) => (
+            <div key={i} className="bg-card rounded-lg p-6 space-y-3">
+              <div className="flex items-center space-x-3">
+                <div className="w-10 h-10 bg-muted rounded-full"></div>
+                <div className="space-y-2">
+                  <div className="h-4 bg-muted rounded w-24"></div>
+                  <div className="h-3 bg-muted rounded w-16"></div>
+                </div>
+              </div>
+              <div className="space-y-2">
+                <div className="h-4 bg-muted rounded w-full"></div>
+                <div className="h-4 bg-muted rounded w-3/4"></div>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="max-w-2xl mx-auto space-y-6">
       <CreatePost onPost={handleCreatePost} />
       
       <div className="space-y-4">
-        {posts.map((post) => (
-          <Post
-            key={post.id}
-            post={post}
-            onLike={handleLike}
-            onReply={handleReply}
-            onShare={handleShare}
-          />
-        ))}
+        {posts.length === 0 ? (
+          <div className="text-center py-8">
+            <p className="text-muted-foreground">No posts yet. Be the first to share something!</p>
+          </div>
+        ) : (
+          posts.map((post) => (
+            <Post
+              key={post.id}
+              post={post}
+              onLike={handleLike}
+              onReply={handleReply}
+              onShare={handleShare}
+            />
+          ))
+        )}
       </div>
     </div>
   );

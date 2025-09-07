@@ -19,6 +19,9 @@ interface PostData {
   shares: number;
   liked: boolean;
   type?: 'text' | 'question' | 'achievement';
+  category?: string;
+  tags?: string[];
+  link_preview?: any;
 }
 
 interface PostProps {

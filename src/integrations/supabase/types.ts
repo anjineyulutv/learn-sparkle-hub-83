@@ -140,35 +140,47 @@ export type Database = {
       posts: {
         Row: {
           author_id: string
+          category: string | null
           content: string
           created_at: string
           id: string
           image_url: string | null
           likes_count: number
+          link_preview: Json | null
+          post_type: string | null
           replies_count: number
           shares_count: number
+          tags: string[] | null
           updated_at: string
         }
         Insert: {
           author_id: string
+          category?: string | null
           content: string
           created_at?: string
           id?: string
           image_url?: string | null
           likes_count?: number
+          link_preview?: Json | null
+          post_type?: string | null
           replies_count?: number
           shares_count?: number
+          tags?: string[] | null
           updated_at?: string
         }
         Update: {
           author_id?: string
+          category?: string | null
           content?: string
           created_at?: string
           id?: string
           image_url?: string | null
           likes_count?: number
+          link_preview?: Json | null
+          post_type?: string | null
           replies_count?: number
           shares_count?: number
+          tags?: string[] | null
           updated_at?: string
         }
         Relationships: []
