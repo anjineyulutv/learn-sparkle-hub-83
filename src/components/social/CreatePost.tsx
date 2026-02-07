@@ -68,13 +68,6 @@ export function CreatePost({ onPost }: CreatePostProps) {
           </div>
         </div>
 
-        {/* Azure Integration Note */}
-        <div className="mt-4 p-3 bg-info/10 border border-info/20 rounded-lg">
-          <div className="flex items-center gap-2 text-sm text-info">
-            <span className="font-semibold">🔗 Azure Integration:</span>
-            <span>Posts stored in Cosmos DB with real-time sync via SignalR</span>
-          </div>
-        </div>
       </CardContent>
     </Card>
   );
