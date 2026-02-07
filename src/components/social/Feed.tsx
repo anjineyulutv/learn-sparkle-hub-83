@@ -33,7 +33,6 @@ export function Feed() {
   useEffect(() => {
     fetchPosts();
     
-    // Subscribe to real-time updates
     const channel = supabase
       .channel('posts-changes')
       .on(
@@ -56,6 +55,7 @@ export function Feed() {
 
   const fetchPosts = async () => {
     try {
+      // Fetch posts
       const { data: postsData, error } = await supabase
         .from('posts')
         .select('*')
@@ -63,15 +63,33 @@ export function Feed() {
 
       if (error) throw error;
 
-      const formattedPosts: PostData[] = postsData?.map(post => {
+      if (!postsData || postsData.length === 0) {
+        setPosts([]);
+        return;
+      }
+
+      // Fetch profiles for all unique author_ids
+      const authorIds = [...new Set(postsData.map(p => p.author_id))];
+      const { data: profiles } = await supabase
+        .from('profiles')
+        .select('user_id, username, display_name, avatar_url')
+        .in('user_id', authorIds);
+
+      const profileMap = new Map(
+        (profiles || []).map(p => [p.user_id, p])
+      );
+
+      const formattedPosts: PostData[] = postsData.map(post => {
         const postType = post.post_type as 'text' | 'question' | 'achievement';
+        const profile = profileMap.get(post.author_id);
+        const displayName = profile?.display_name || profile?.username || 'Anonymous';
         
         return {
           id: post.id,
           author: {
-            name: 'Anjineyulu',
-            avatar: 'A',
-            handle: 'anjineyulu'
+            name: displayName,
+            avatar: displayName.charAt(0).toUpperCase(),
+            handle: profile?.username || undefined
           },
           content: post.content,
           timestamp: new Date(post.created_at),
@@ -84,7 +102,7 @@ export function Feed() {
           tags: post.tags,
           link_preview: post.link_preview
         };
-      }) || [];
+      });
 
       // Check likes for authenticated user
       if (user && formattedPosts.length > 0) {
@@ -95,7 +113,6 @@ export function Feed() {
           .in('post_id', formattedPosts.map(p => p.id));
 
         const likedPostIds = new Set(likes?.map(l => l.post_id) || []);
-        
         formattedPosts.forEach(post => {
           post.liked = likedPostIds.has(post.id);
         });
@@ -104,101 +121,7 @@ export function Feed() {
       setPosts(formattedPosts);
     } catch (error) {
       console.error('Error fetching posts:', error);
-      // If no posts exist or there's an error, show the mock posts for demo
-      const mockPosts: PostData[] = [
-        {
-          id: '1',
-          author: { name: 'Anjineyulu', avatar: 'A' },
-          content: "🚀 Hiring an intern/contractor! I'm hiring for a short term project in Applied AI. Must haves: - Experience with Instructor/Structured output generation from LLMs. - Experience with prompting LLMs by understanding Biz outcomes. - Knowing or ready to pickup LiteLLM or Gateway by Portkey. How to apply: email your best GenAI project at rachitt01@gmail.com",
-          timestamp: new Date(Date.now() - 3600000),
-          likes: 5,
-          replies: 2,
-          shares: 1,
-          liked: false,
-          type: 'text',
-          category: '🚀 Hiring/Internship Opportunity',
-          tags: ['hiring', 'AI', 'internship', 'LLM']
-        },
-        {
-          id: '2',
-          author: { name: 'Anjineyulu', avatar: 'A' },
-          content: "💡 POLL: How many have cleared JEE Mains (general cutoff)? This helps when I speak to founders. No bias if you haven't - I understand coaching is expensive. Let's focus on skills and passion! 📊 Results: Yes (12 votes), No (1 vote)",
-          timestamp: new Date(Date.now() - 7200000),
-          likes: 15,
-          replies: 8,
-          shares: 3,
-          liked: false,
-          type: 'question',
-          category: '💡 AI/ML Update',
-          tags: ['poll', 'JEE', 'community']
-        },
-        {
-          id: '3',
-          author: { name: 'Anjineyulu', avatar: 'A' },
-          content: "🚀 Congratulations to everyone who got internships this semester! @PayPal intern and others - proud of your achievements! For others, remember: அடிமேல் அடி அடித்தால் அம்மியும் நகரும் (Persistent effort moves even the stone). Keep pushing!",
-          timestamp: new Date(Date.now() - 10800000),
-          likes: 18,
-          replies: 12,
-          shares: 6,
-          liked: true,
-          type: 'achievement',
-          category: '🚀 Hiring/Internship Opportunity',
-          tags: ['congratulations', 'internships', 'motivation']
-        },
-        {
-          id: '4',
-          author: { name: 'Anjineyulu', avatar: 'A' },
-          content: "🤖 Creative AI is making waves! A meme creating AI SaaS made $100k with just 3 founders. Check out SuperMeme.ai - it's incredibly good at creating contextual memes with perfect semantics. Think of it as raising the bar for meme creators, not replacing them!",
-          timestamp: new Date(Date.now() - 14400000),
-          likes: 8,
-          replies: 4,
-          shares: 2,
-          liked: false,
-          type: 'text',
-          category: '🤖 Creative AI in Action',
-          tags: ['AI', 'creative', 'SaaS', 'memes']
-        },
-        {
-          id: '5',
-          author: { name: 'Anjineyulu', avatar: 'A' },
-          content: "📚 Deep Learning Interview Book - Essential reading for anyone preparing for AI/ML interviews. Also sharing some exciting updates about Freshworks founder Girish Mathrubootham and early startup investments. The entrepreneurial ecosystem is thriving!",
-          timestamp: new Date(Date.now() - 18000000),
-          likes: 12,
-          replies: 6,
-          shares: 4,
-          liked: false,
-          type: 'text',
-          category: '📚 RAG & AI Copilots',
-          tags: ['deep-learning', 'interviews', 'startups']
-        },
-        {
-          id: '6',
-          author: { name: 'Anjineyulu', avatar: 'A' },
-          content: "🚀 Cuebo.ai is hiring 2 interns! They build tools for sales teams and are growing fast. Work with text/audio data, LLMs, NLP models. Requirements: Python, Git, LLMs/NLP experience is a plus. Minimum 3 month commitment, potential full-time conversion.",
-          timestamp: new Date(Date.now() - 21600000),
-          likes: 10,
-          replies: 5,
-          shares: 3,
-          liked: false,
-          type: 'text',
-          category: '🚀 Hiring/Internship Opportunity',
-          tags: ['Cuebo', 'sales-tools', 'NLP', 'Python']
-        },
-        {
-          id: '7',
-          author: { name: 'Anjineyulu', avatar: 'A' },
-          content: "💡 Network is terrible due to cyclone 😭 Trying to sustain on mobile data. Community support during natural disasters shows our resilience. Thanks everyone for understanding the connectivity issues during our calls!",
-          timestamp: new Date(Date.now() - 25200000),
-          likes: 4,
-          replies: 8,
-          shares: 1,
-          liked: false,
-          type: 'text',
-          category: '💡 AI/ML Update',
-          tags: ['cyclone', 'network', 'community', 'support']
-        }
-      ];
-      setPosts(mockPosts);
+      setPosts([]);
     } finally {
       setLoading(false);
     }

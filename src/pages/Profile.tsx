@@ -138,13 +138,6 @@ export function Profile() {
         </Button>
       </div>
 
-      {/* Azure Integration Note */}
-      <div className="p-4 bg-info/10 border border-info/20 rounded-lg">
-        <div className="flex items-center gap-2 text-sm text-info">
-          <span className="font-semibold">🔗 Azure Integration:</span>
-          <span>User profiles managed by Azure AD B2C with data in Cosmos DB</span>
-        </div>
-      </div>
 
       {/* Profile Header */}
       <Card className="bg-gradient-to-br from-background to-muted/30">
