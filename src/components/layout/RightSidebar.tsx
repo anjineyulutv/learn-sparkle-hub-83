@@ -1,9 +1,8 @@
-import { TrendingUp, Users, Award, Bot } from 'lucide-react';
+import { TrendingUp, Users, Bot } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { Progress } from "@/components/ui/progress";
+import { Leaderboard } from "@/components/social/Leaderboard";
 
 interface TrendingTopic {
   topic: string;
@@ -18,7 +17,7 @@ interface SuggestedUser {
 
 const trendingTopics: TrendingTopic[] = [
   { topic: '#ReactHooks', discussions: 847 },
-  { topic: '#AzureCertification', discussions: 523 },
+  { topic: '#CloudComputing', discussions: 523 },
   { topic: '#JavaScriptTips', discussions: 392 },
   { topic: '#WebDevelopment', discussions: 289 },
 ];
@@ -28,13 +27,6 @@ const suggestedUsers: SuggestedUser[] = [
   { name: 'Sarah Johnson', avatar: 'S', role: 'Data Scientist' },
   { name: 'David Lee', avatar: 'D', role: 'DevOps Engineer' },
 ];
-
-const userStats = {
-  learningStreak: 7,
-  postsThisWeek: 12,
-  peopleHelped: 8,
-  groupsJoined: 3
-};
 
 export function RightSidebar() {
   return (
@@ -62,6 +54,9 @@ export function RightSidebar() {
         </CardContent>
       </Card>
 
+      {/* Leaderboard - real data */}
+      <Leaderboard />
+
       {/* Trending Topics */}
       <Card>
         <CardHeader className="pb-3">
@@ -71,7 +66,7 @@ export function RightSidebar() {
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-3">
-          {trendingTopics.map((topic, index) => (
+          {trendingTopics.map((topic) => (
             <div
               key={topic.topic}
               className="p-3 hover:bg-accent rounded-lg cursor-pointer transition-colors"
@@ -82,51 +77,6 @@ export function RightSidebar() {
               </div>
             </div>
           ))}
-        </CardContent>
-      </Card>
-
-      {/* Learning Stats */}
-      <Card>
-        <CardHeader className="pb-3">
-          <CardTitle className="text-lg flex items-center gap-2">
-            <Award className="h-5 w-5 text-warning" />
-            Your Stats
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="space-y-3">
-            <div className="flex items-center justify-between">
-              <span className="text-sm">Learning Streak</span>
-              <div className="flex items-center gap-1">
-                <span className="font-semibold">{userStats.learningStreak} days</span>
-                <span>🔥</span>
-              </div>
-            </div>
-            
-            <div className="flex items-center justify-between">
-              <span className="text-sm">Posts This Week</span>
-              <span className="font-semibold">{userStats.postsThisWeek}</span>
-            </div>
-            
-            <div className="flex items-center justify-between">
-              <span className="text-sm">People Helped</span>
-              <span className="font-semibold">{userStats.peopleHelped}</span>
-            </div>
-            
-            <div className="flex items-center justify-between">
-              <span className="text-sm">Groups Joined</span>
-              <span className="font-semibold">{userStats.groupsJoined}</span>
-            </div>
-          </div>
-
-          {/* Progress Visualization */}
-          <div className="space-y-2 mt-4 pt-4 border-t border-border">
-            <div className="flex justify-between text-sm">
-              <span>Weekly Goal</span>
-              <span>8/10 posts</span>
-            </div>
-            <Progress value={80} className="h-2" />
-          </div>
         </CardContent>
       </Card>
 

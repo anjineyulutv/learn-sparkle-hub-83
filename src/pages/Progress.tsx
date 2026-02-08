@@ -142,14 +142,6 @@ export function Progress() {
         </h1>
       </div>
 
-      {/* Azure Integration Note */}
-      <div className="p-4 bg-info/10 border border-info/20 rounded-lg">
-        <div className="flex items-center gap-2 text-sm text-info">
-          <span className="font-semibold">🔗 Azure Integration:</span>
-          <span>Progress tracking via Azure Functions with analytics in Application Insights</span>
-        </div>
-      </div>
-
       {/* Overview Stats */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         <Card className="bg-gradient-primary text-primary-foreground">
