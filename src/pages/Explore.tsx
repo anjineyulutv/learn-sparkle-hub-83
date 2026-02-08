@@ -94,14 +94,6 @@ export function Explore() {
         </h1>
       </div>
 
-      {/* Azure Integration Note */}
-      <div className="p-4 bg-info/10 border border-info/20 rounded-lg">
-        <div className="flex items-center gap-2 text-sm text-info">
-          <span className="font-semibold">🔗 Azure Integration:</span>
-          <span>Content powered by Azure Cognitive Search with AI-driven recommendations</span>
-        </div>
-      </div>
-
       {/* Search and Filters */}
       <div className="space-y-4">
         <div className="flex gap-4">

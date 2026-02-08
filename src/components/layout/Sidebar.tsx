@@ -18,14 +18,6 @@ export function Sidebar() {
 
   return (
     <aside className="w-80 bg-card border-r border-border p-6">
-      {/* Azure Status */}
-      <div className="mb-6 p-3 bg-social-blue/10 border border-social-blue/20 rounded-lg">
-        <div className="flex items-center gap-2 text-sm text-social-blue">
-          <div className="w-2 h-2 bg-success rounded-full animate-pulse"></div>
-          <span className="font-semibold">Demo Mode - Azure Ready</span>
-        </div>
-      </div>
-
       {/* Navigation */}
       <nav className="space-y-2">
         {navItems.map((item) => {
