@@ -1,98 +1,94 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Edit, MapPin, Calendar, Link2, Trophy, Users, BookOpen, Star } from 'lucide-react';
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from '@/hooks/use-toast';
+import { useAuth } from '@/hooks/useAuth';
+import { supabase } from '@/integrations/supabase/client';
+import { Loader2 } from 'lucide-react';
 
-interface UserProfile {
-  id: string;
-  name: string;
-  avatar: string;
-  title: string;
-  bio: string;
-  location: string;
-  joinDate: Date;
-  website?: string;
-  skills: string[];
-  stats: {
-    totalPoints: number;
-    postsCount: number;
-    helpedUsers: number;
-    studyGroups: number;
-    achievements: number;
-    learningStreak: number;
-  };
+interface ProfileData {
+  display_name: string | null;
+  username: string | null;
+  avatar_url: string | null;
+  bio: string | null;
+  created_at: string;
 }
 
 interface UserPost {
   id: string;
   content: string;
-  timestamp: Date;
-  likes: number;
-  replies: number;
-  type: 'text' | 'question' | 'achievement';
+  created_at: string;
+  likes_count: number;
+  replies_count: number;
+  post_type: string | null;
 }
 
-const mockProfile: UserProfile = {
-  id: 'user1',
-  name: 'Manas Kumar',
-  avatar: 'M',
-  title: 'Full-Stack Developer & Learning Enthusiast',
-  bio: "Passionate about technology, continuous learning, and helping others grow. Currently diving deep into cloud technologies and machine learning. Always excited to collaborate on interesting projects!",
-  location: 'San Francisco, CA',
-  joinDate: new Date('2024-01-15'),
-  website: 'https://manaskumar.dev',
-  skills: ['JavaScript', 'React', 'Node.js', 'Azure', 'Python', 'TypeScript', 'Docker', 'GraphQL'],
-  stats: {
-    totalPoints: 2450,
-    postsCount: 89,
-    helpedUsers: 34,
-    studyGroups: 6,
-    achievements: 12,
-    learningStreak: 15
-  }
-};
-
-const mockUserPosts: UserPost[] = [
-  {
-    id: '1',
-    content: "Just completed my Azure Functions certification! The serverless approach is really powerful for building scalable applications. Anyone else working with serverless architectures?",
-    timestamp: new Date(Date.now() - 3600000),
-    likes: 23,
-    replies: 8,
-    type: 'achievement'
-  },
-  {
-    id: '2',
-    content: "Question: What's the best approach for state management in large React applications? Currently evaluating Redux Toolkit vs Zustand vs Context API. Would love to hear your experiences!",
-    timestamp: new Date(Date.now() - 86400000),
-    likes: 15,
-    replies: 12,
-    type: 'question'
-  },
-  {
-    id: '3',
-    content: "Sharing a great resource I found for learning Docker containerization. The hands-on examples really helped me understand the fundamentals better. Link in comments!",
-    timestamp: new Date(Date.now() - 172800000),
-    likes: 31,
-    replies: 6,
-    type: 'text'
-  }
-];
-
-const recentAchievements = [
-  { title: 'Azure Expert', icon: '🏆', date: '2 days ago' },
-  { title: 'Helper Badge', icon: '🤝', date: '1 week ago' },
-  { title: '15-Day Streak', icon: '🔥', date: '2 weeks ago' },
-  { title: 'Community Leader', icon: '⭐', date: '3 weeks ago' }
-];
+interface UserStats {
+  totalPoints: number;
+  postsCount: number;
+  likesReceived: number;
+  studyGroups: number;
+}
 
 export function Profile() {
   const [isEditing, setIsEditing] = useState(false);
+  const [profile, setProfile] = useState<ProfileData | null>(null);
+  const [posts, setPosts] = useState<UserPost[]>([]);
+  const [stats, setStats] = useState<UserStats>({ totalPoints: 0, postsCount: 0, likesReceived: 0, studyGroups: 0 });
+  const [loading, setLoading] = useState(true);
   const { toast } = useToast();
+  const { user } = useAuth();
+
+  useEffect(() => {
+    if (user) {
+      fetchProfile();
+      fetchPosts();
+      fetchStats();
+    }
+  }, [user]);
+
+  const fetchProfile = async () => {
+    if (!user) return;
+    const { data } = await supabase
+      .from('profiles')
+      .select('*')
+      .eq('user_id', user.id)
+      .single();
+    if (data) setProfile(data);
+    setLoading(false);
+  };
+
+  const fetchPosts = async () => {
+    if (!user) return;
+    const { data } = await supabase
+      .from('posts')
+      .select('id, content, created_at, likes_count, replies_count, post_type')
+      .eq('author_id', user.id)
+      .order('created_at', { ascending: false });
+    if (data) setPosts(data);
+  };
+
+  const fetchStats = async () => {
+    if (!user) return;
+    
+    const [postsRes, likesRes, groupsRes] = await Promise.all([
+      supabase.from('posts').select('id', { count: 'exact', head: true }).eq('author_id', user.id),
+      supabase.from('post_likes').select('id', { count: 'exact', head: true })
+        .in('post_id', (await supabase.from('posts').select('id').eq('author_id', user.id)).data?.map(p => p.id) || []),
+      supabase.from('study_group_members').select('id', { count: 'exact', head: true }).eq('user_id', user.id),
+    ]);
+
+    const postsCount = postsRes.count || 0;
+    const likesReceived = likesRes.count || 0;
+    const studyGroups = groupsRes.count || 0;
+    const totalPoints = postsCount * 10 + likesReceived * 5 + studyGroups * 3;
+
+    setStats({ totalPoints, postsCount, likesReceived, studyGroups });
+  };
 
   const handleEdit = () => {
     setIsEditing(!isEditing);
@@ -104,23 +100,31 @@ export function Profile() {
     }
   };
 
-  const formatDate = (date: Date) => {
-    return date.toLocaleDateString('en-US', { 
-      year: 'numeric', 
-      month: 'long' 
-    });
+  const formatDate = (dateStr: string) => {
+    return new Date(dateStr).toLocaleDateString('en-US', { year: 'numeric', month: 'long' });
   };
 
-  const formatPostDate = (date: Date) => {
+  const formatPostDate = (dateStr: string) => {
+    const date = new Date(dateStr);
     const now = new Date();
     const diffMs = now.getTime() - date.getTime();
     const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
     const diffDays = Math.floor(diffHours / 24);
-    
     if (diffHours < 24) return `${diffHours}h ago`;
     if (diffDays < 7) return `${diffDays}d ago`;
     return date.toLocaleDateString();
   };
+
+  const displayName = profile?.display_name || profile?.username || user?.email?.split('@')[0] || 'User';
+  const initials = displayName.charAt(0).toUpperCase();
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center py-20">
+        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -128,16 +132,11 @@ export function Profile() {
         <h1 className="text-3xl font-bold bg-gradient-primary bg-clip-text text-transparent">
           Your Profile
         </h1>
-        <Button 
-          onClick={handleEdit}
-          variant="outline"
-          className="flex items-center gap-2"
-        >
+        <Button onClick={handleEdit} variant="outline" className="flex items-center gap-2">
           <Edit className="h-4 w-4" />
           {isEditing ? 'Save Changes' : 'Edit Profile'}
         </Button>
       </div>
-
 
       {/* Profile Header */}
       <Card className="bg-gradient-to-br from-background to-muted/30">
@@ -146,46 +145,23 @@ export function Profile() {
             <div className="flex-shrink-0">
               <Avatar className="h-32 w-32 text-4xl">
                 <AvatarFallback className="bg-gradient-primary text-primary-foreground">
-                  {mockProfile.avatar}
+                  {initials}
                 </AvatarFallback>
               </Avatar>
             </div>
-            
             <div className="flex-1 space-y-4">
               <div>
-                <h2 className="text-3xl font-bold">{mockProfile.name}</h2>
-                <p className="text-lg text-muted-foreground">{mockProfile.title}</p>
+                <h2 className="text-3xl font-bold">{displayName}</h2>
+                <p className="text-lg text-muted-foreground">@{profile?.username || user?.email?.split('@')[0]}</p>
               </div>
-              
-              <p className="text-muted-foreground leading-relaxed">
-                {mockProfile.bio}
-              </p>
-              
+              {profile?.bio && (
+                <p className="text-muted-foreground leading-relaxed">{profile.bio}</p>
+              )}
               <div className="flex flex-wrap gap-4 text-sm text-muted-foreground">
                 <div className="flex items-center gap-1">
-                  <MapPin className="h-4 w-4" />
-                  <span>{mockProfile.location}</span>
-                </div>
-                <div className="flex items-center gap-1">
                   <Calendar className="h-4 w-4" />
-                  <span>Joined {formatDate(mockProfile.joinDate)}</span>
+                  <span>Joined {profile?.created_at ? formatDate(profile.created_at) : ''}</span>
                 </div>
-                {mockProfile.website && (
-                  <div className="flex items-center gap-1">
-                    <Link2 className="h-4 w-4" />
-                    <a href={mockProfile.website} className="text-social-blue hover:underline">
-                      Portfolio
-                    </a>
-                  </div>
-                )}
-              </div>
-              
-              <div className="flex flex-wrap gap-2">
-                {mockProfile.skills.map((skill) => (
-                  <Badge key={skill} variant="outline" className="text-xs">
-                    {skill}
-                  </Badge>
-                ))}
               </div>
             </div>
           </div>
@@ -193,58 +169,29 @@ export function Profile() {
       </Card>
 
       {/* Stats Grid */}
-      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         <Card className="text-center">
           <CardContent className="p-4">
-            <div className="text-2xl font-bold text-social-blue">
-              {mockProfile.stats.totalPoints.toLocaleString()}
-            </div>
+            <div className="text-2xl font-bold text-social-blue">{stats.totalPoints.toLocaleString()}</div>
             <div className="text-sm text-muted-foreground">Points</div>
           </CardContent>
         </Card>
-        
         <Card className="text-center">
           <CardContent className="p-4">
-            <div className="text-2xl font-bold text-social-purple">
-              {mockProfile.stats.postsCount}
-            </div>
+            <div className="text-2xl font-bold text-social-purple">{stats.postsCount}</div>
             <div className="text-sm text-muted-foreground">Posts</div>
           </CardContent>
         </Card>
-        
         <Card className="text-center">
           <CardContent className="p-4">
-            <div className="text-2xl font-bold text-success">
-              {mockProfile.stats.helpedUsers}
-            </div>
-            <div className="text-sm text-muted-foreground">Helped</div>
+            <div className="text-2xl font-bold text-success">{stats.likesReceived}</div>
+            <div className="text-sm text-muted-foreground">Likes Received</div>
           </CardContent>
         </Card>
-        
         <Card className="text-center">
           <CardContent className="p-4">
-            <div className="text-2xl font-bold text-warning">
-              {mockProfile.stats.studyGroups}
-            </div>
+            <div className="text-2xl font-bold text-warning">{stats.studyGroups}</div>
             <div className="text-sm text-muted-foreground">Groups</div>
-          </CardContent>
-        </Card>
-        
-        <Card className="text-center">
-          <CardContent className="p-4">
-            <div className="text-2xl font-bold text-destructive">
-              {mockProfile.stats.achievements}
-            </div>
-            <div className="text-sm text-muted-foreground">Badges</div>
-          </CardContent>
-        </Card>
-        
-        <Card className="text-center">
-          <CardContent className="p-4">
-            <div className="text-2xl font-bold bg-gradient-primary bg-clip-text text-transparent">
-              {mockProfile.stats.learningStreak}
-            </div>
-            <div className="text-sm text-muted-foreground">Day Streak</div>
           </CardContent>
         </Card>
       </div>
@@ -256,10 +203,6 @@ export function Profile() {
             <BookOpen className="h-4 w-4" />
             Posts
           </TabsTrigger>
-          <TabsTrigger value="achievements" className="flex items-center gap-2">
-            <Trophy className="h-4 w-4" />
-            Achievements
-          </TabsTrigger>
           <TabsTrigger value="groups" className="flex items-center gap-2">
             <Users className="h-4 w-4" />
             Groups
@@ -267,66 +210,49 @@ export function Profile() {
         </TabsList>
 
         <TabsContent value="posts" className="space-y-4">
-          {mockUserPosts.map((post) => (
-            <Card key={post.id} className="hover:shadow-elegant transition-all duration-300">
-              <CardContent className="p-6">
-                <div className="space-y-4">
-                  <div className="flex items-start justify-between">
-                    <div className="flex items-center gap-3">
-                      <Avatar className="h-10 w-10">
-                        <AvatarFallback className="bg-gradient-primary text-primary-foreground">
-                          {mockProfile.avatar}
-                        </AvatarFallback>
-                      </Avatar>
-                      <div>
-                        <p className="font-semibold">{mockProfile.name}</p>
-                        <p className="text-sm text-muted-foreground">
-                          {formatPostDate(post.timestamp)}
-                        </p>
-                      </div>
-                    </div>
-                    <Badge variant={
-                      post.type === 'achievement' ? 'default' :
-                      post.type === 'question' ? 'secondary' : 'outline'
-                    }>
-                      {post.type}
-                    </Badge>
-                  </div>
-                  
-                  <p className="leading-relaxed">{post.content}</p>
-                  
-                  <div className="flex items-center gap-4 text-sm text-muted-foreground">
-                    <div className="flex items-center gap-1">
-                      <Star className="h-4 w-4" />
-                      <span>{post.likes} likes</span>
-                    </div>
-                    <div className="flex items-center gap-1">
-                      <Users className="h-4 w-4" />
-                      <span>{post.replies} replies</span>
-                    </div>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          ))}
-        </TabsContent>
-
-        <TabsContent value="achievements" className="space-y-4">
-          <div className="grid gap-4 md:grid-cols-2">
-            {recentAchievements.map((achievement, index) => (
-              <Card key={index} className="hover:shadow-elegant transition-all duration-300">
+          {posts.length === 0 ? (
+            <div className="text-center py-12">
+              <BookOpen className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
+              <h3 className="text-lg font-semibold mb-2">No posts yet</h3>
+              <p className="text-muted-foreground">Start sharing your learning journey!</p>
+            </div>
+          ) : (
+            posts.map((post) => (
+              <Card key={post.id} className="hover:shadow-elegant transition-all duration-300">
                 <CardContent className="p-6">
-                  <div className="flex items-center gap-4">
-                    <div className="text-3xl">{achievement.icon}</div>
-                    <div className="flex-1">
-                      <h3 className="font-semibold">{achievement.title}</h3>
-                      <p className="text-sm text-muted-foreground">Earned {achievement.date}</p>
+                  <div className="space-y-4">
+                    <div className="flex items-start justify-between">
+                      <div className="flex items-center gap-3">
+                        <Avatar className="h-10 w-10">
+                          <AvatarFallback className="bg-gradient-primary text-primary-foreground">
+                            {initials}
+                          </AvatarFallback>
+                        </Avatar>
+                        <div>
+                          <p className="font-semibold">{displayName}</p>
+                          <p className="text-sm text-muted-foreground">{formatPostDate(post.created_at)}</p>
+                        </div>
+                      </div>
+                      {post.post_type && (
+                        <Badge variant="outline">{post.post_type}</Badge>
+                      )}
+                    </div>
+                    <p className="leading-relaxed">{post.content}</p>
+                    <div className="flex items-center gap-4 text-sm text-muted-foreground">
+                      <div className="flex items-center gap-1">
+                        <Star className="h-4 w-4" />
+                        <span>{post.likes_count} likes</span>
+                      </div>
+                      <div className="flex items-center gap-1">
+                        <Users className="h-4 w-4" />
+                        <span>{post.replies_count} replies</span>
+                      </div>
                     </div>
                   </div>
                 </CardContent>
               </Card>
-            ))}
-          </div>
+            ))
+          )}
         </TabsContent>
 
         <TabsContent value="groups">
