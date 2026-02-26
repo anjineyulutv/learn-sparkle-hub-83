@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Bell, Shield, Palette, Globe, Database, User } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -9,6 +9,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Separator } from "@/components/ui/separator";
 import { useToast } from '@/hooks/use-toast';
+import { useAuth } from '@/hooks/useAuth';
+import { supabase } from '@/integrations/supabase/client';
 
 interface NotificationSettings {
   newMessages: boolean;
@@ -36,6 +38,7 @@ interface AppearanceSettings {
 
 export function Settings() {
   const { toast } = useToast();
+  const { user } = useAuth();
   
   const [notifications, setNotifications] = useState<NotificationSettings>({
     newMessages: true,
@@ -62,10 +65,31 @@ export function Settings() {
   });
 
   const [accountData, setAccountData] = useState({
-    email: 'manas.kumar@example.com',
-    username: 'manaskumar',
-    displayName: 'Manas Kumar'
+    email: '',
+    username: '',
+    displayName: ''
   });
+
+  useEffect(() => {
+    if (user) {
+      loadAccountData();
+    }
+  }, [user]);
+
+  const loadAccountData = async () => {
+    if (!user) return;
+    const { data } = await supabase
+      .from('profiles')
+      .select('username, display_name')
+      .eq('user_id', user.id)
+      .single();
+    
+    setAccountData({
+      email: user.email || '',
+      username: data?.username || user.email?.split('@')[0] || '',
+      displayName: data?.display_name || user.email?.split('@')[0] || '',
+    });
+  };
 
   const handleNotificationChange = (key: keyof NotificationSettings) => {
     setNotifications(prev => ({
@@ -88,7 +112,25 @@ export function Settings() {
     }));
   };
 
-  const handleSaveSettings = () => {
+  const handleSaveSettings = async () => {
+    if (user) {
+      const { error } = await supabase
+        .from('profiles')
+        .update({
+          username: accountData.username,
+          display_name: accountData.displayName,
+        })
+        .eq('user_id', user.id);
+
+      if (error) {
+        toast({
+          title: "Save failed",
+          description: error.message,
+          variant: "destructive",
+        });
+        return;
+      }
+    }
     toast({
       title: "Settings saved",
       description: "Your preferences have been updated successfully.",
@@ -119,14 +161,6 @@ export function Settings() {
         <Button onClick={handleSaveSettings} className="bg-gradient-primary text-primary-foreground">
           Save Changes
         </Button>
-      </div>
-
-      {/* Azure Integration Note */}
-      <div className="p-4 bg-info/10 border border-info/20 rounded-lg">
-        <div className="flex items-center gap-2 text-sm text-info">
-          <span className="font-semibold">🔗 Azure Integration:</span>
-          <span>User preferences stored in Cosmos DB with Azure AD B2C authentication</span>
-        </div>
       </div>
 
       <Tabs defaultValue="notifications" className="space-y-6">
